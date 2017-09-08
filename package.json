@@ -22,7 +22,7 @@
     "build:umd:dev": "cross-env BABEL_ENV=es NODE_ENV=development rollup -c rollup.umd.config.js -i src/index.js -o dist/react-textarea-autosize.js",
     "docs:build": "cross-env BABEL_ENV=es NODE_ENV=development rollup -c example/rollup.config.js -i example/index.js -o example/bundle.js",
     "dev": "cross-env BABEL_ENV=es NODE_ENV=development rollup -c example/rollup.config.js -i example/index.js -o example/bundle.js -w",
-    "docs:publish": "npm run docs:build && cd example && rimraf .git && git init && git commit --allow-empty -m 'update docs' && git checkout -b gh-pages && touch .nojekyll && git add . && git commit -am 'update docs' && git push git@github.com:andreypopp/react-textarea-autosize gh-pages --force",
+    "docs:publish": "npm run docs:build && cd example && rimraf .git && git init && git commit --allow-empty -m 'update docs' && git checkout -b gh-pages && touch .nojekyll && git add -A && git commit -am 'update docs' && git push git@github.com:kengho/react-textarea-autosize gh-pages --force",
     "clean": "rimraf es && rimraf lib && rimraf dist",
     "lint": "eslint src",
     "prepare": "npm run build",
