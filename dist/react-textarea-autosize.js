@@ -9,6 +9,76 @@ PropTypes = PropTypes && PropTypes.hasOwnProperty('default') ? PropTypes['defaul
 
 var isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
+function calculateNodeWidth(uiTextNode, sizingStyle, hiddenTextarea, HIDDEN_TEXTAREA_STYLE, minWidth, maxWidth, autosizeWidthPrecision) {
+  hiddenTextarea.fill = function (sizingStyle) {
+    // Copied from "if (autosizeWidth) {}" in calculateNodeHeight.js.
+    Object.keys(sizingStyle).forEach(function (key) {
+      hiddenTextarea.style[key] = sizingStyle[key];
+    });
+    Object.keys(HIDDEN_TEXTAREA_STYLE).forEach(function (key) {
+      hiddenTextarea.style.setProperty(key, HIDDEN_TEXTAREA_STYLE[key], 'important');
+    });
+  };
+
+  hiddenTextarea.value = uiTextNode.value || uiTextNode.placeholder || 'x';
+
+  var getWidthFromCSS = function getWidthFromCSS(cssWidth) {
+    if (cssWidth === '0') {
+      return 0;
+    }
+
+    var match = cssWidth.match(/^(\d+)px$/);
+    if (match) {
+      return Number(match[1]);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('Warning: maxWidth and minWidth should be equal to "0" or match "/^(d+)px$"/');
+    }
+  };
+
+  minWidth = getWidthFromCSS(minWidth);
+  maxWidth = getWidthFromCSS(maxWidth);
+
+  var approximateNodeWidth = function approximateNodeWidth() {
+    var getScrollHeight = function getScrollHeight(width) {
+      var currentSizingStyle = Object.assign(sizingStyle, {
+        width: width + 'px'
+      });
+      hiddenTextarea.fill(currentSizingStyle);
+
+      return hiddenTextarea.scrollHeight;
+    };
+
+    var initialHigherScrollHeight = getScrollHeight(minWidth);
+    var initialLowerScrollHeight = getScrollHeight(maxWidth);
+    if (initialHigherScrollHeight === initialLowerScrollHeight) {
+      return minWidth;
+    }
+
+    var binarySearchMaxWidthMinScrollHeight = function binarySearchMaxWidthMinScrollHeight(lowerBoundary, higherBoundary, lastLowerScrollHeight, lastHigherBoundary) {
+      if (higherBoundary - lowerBoundary < autosizeWidthPrecision) {
+        // lastHigherBoundary should be enough, but for some reason it's not.
+        return lastHigherBoundary + 10;
+      }
+
+      var lowerScrollHeight = getScrollHeight(higherBoundary);
+
+      if (lowerScrollHeight <= lastLowerScrollHeight) {
+        return binarySearchMaxWidthMinScrollHeight(lowerBoundary, lowerBoundary + (higherBoundary - lowerBoundary) / 2, lowerScrollHeight, higherBoundary);
+      } else {
+        return binarySearchMaxWidthMinScrollHeight(higherBoundary, higherBoundary + (higherBoundary - lowerBoundary), lastLowerScrollHeight, higherBoundary);
+      }
+    };
+
+    return binarySearchMaxWidthMinScrollHeight(minWidth, maxWidth, Infinity);
+  };
+
+  var width = approximateNodeWidth();
+  sizingStyle['width'] = width + 'px';
+
+  return width;
+}
+
 var isIE = isBrowser ? !!document.documentElement.currentStyle : false;
 var hiddenTextarea = isBrowser && document.createElement('textarea');
 
@@ -32,6 +102,10 @@ function calculateNodeHeight(uiTextNode, uid) {
   var useCache = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
   var minRows = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
   var maxRows = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : null;
+  var autosizeWidth = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : false;
+  var minWidth = arguments.length > 6 && arguments[6] !== undefined ? arguments[6] : '0';
+  var maxWidth = arguments.length > 7 && arguments[7] !== undefined ? arguments[7] : '1920px';
+  var autosizeWidthPrecision = arguments.length > 8 && arguments[8] !== undefined ? arguments[8] : 8;
 
   if (hiddenTextarea.parentNode === null) {
     document.body.appendChild(hiddenTextarea);
@@ -50,10 +124,15 @@ function calculateNodeHeight(uiTextNode, uid) {
       boxSizing = nodeStyling.boxSizing,
       sizingStyle = nodeStyling.sizingStyle;
 
+
+  var width = void 0;
+  if (autosizeWidth) {
+    width = calculateNodeWidth(uiTextNode, sizingStyle, hiddenTextarea, HIDDEN_TEXTAREA_STYLE, minWidth, maxWidth, autosizeWidthPrecision);
+  }
+
   // Need to have the overflow attribute to hide the scrollbar otherwise
   // text-lines will not calculated properly as the shadow will technically be
   // narrower for content
-
   Object.keys(sizingStyle).forEach(function (key) {
     hiddenTextarea.style[key] = sizingStyle[key];
   });
@@ -96,6 +175,18 @@ function calculateNodeHeight(uiTextNode, uid) {
   }
 
   var rowCount = Math.floor(height / singleRowHeight);
+
+  if (autosizeWidth) {
+    return {
+      height: height,
+      minHeight: minHeight,
+      maxHeight: maxHeight,
+      rowCount: rowCount,
+      width: width,
+      minWidth: minWidth,
+      maxWidth: maxWidth
+    };
+  }
 
   return { height: height, minHeight: minHeight, maxHeight: maxHeight, rowCount: rowCount };
 }
@@ -275,7 +366,7 @@ var TextareaAutosize = function (_React$Component) {
         return;
       }
 
-      var nodeHeight = calculateNodeHeight(_this._rootDOMNode, _this._uid, _this.props.useCacheForDOMMeasurements, _this.props.minRows, _this.props.maxRows);
+      var nodeHeight = calculateNodeHeight(_this._rootDOMNode, _this._uid, _this.props.useCacheForDOMMeasurements, _this.props.minRows, _this.props.maxRows, _this.props.autosizeWidth, _this.props.minWidth, _this.props.maxWidth, _this.props.autosizeWidthPrecision);
 
       if (nodeHeight === null) {
         callback();
@@ -285,13 +376,15 @@ var TextareaAutosize = function (_React$Component) {
       var height = nodeHeight.height,
           minHeight = nodeHeight.minHeight,
           maxHeight = nodeHeight.maxHeight,
-          rowCount = nodeHeight.rowCount;
-
+          rowCount = nodeHeight.rowCount,
+          width = nodeHeight.width,
+          minWidth = nodeHeight.minWidth,
+          maxWidth = nodeHeight.maxWidth;
 
       _this.rowCount = rowCount;
 
-      if (_this.state.height !== height || _this.state.minHeight !== minHeight || _this.state.maxHeight !== maxHeight) {
-        _this.setState({ height: height, minHeight: minHeight, maxHeight: maxHeight }, callback);
+      if (_this.state.height !== height || _this.state.minHeight !== minHeight || _this.state.maxHeight !== maxHeight || _this.state.width !== width || _this.state.minWidth !== minWidth || _this.state.maxWidth !== maxWidth) {
+        _this.setState({ height: height, minHeight: minHeight, maxHeight: maxHeight, width: width, minWidth: minWidth, maxWidth: maxWidth }, callback);
         return;
       }
 
@@ -316,11 +409,15 @@ var TextareaAutosize = function (_React$Component) {
         _onHeightChange = _props.onHeightChange,
         _useCacheForDOMMeasurements = _props.useCacheForDOMMeasurements,
         _inputRef = _props.inputRef,
-        props = objectWithoutProperties(_props, ['minRows', 'maxRows', 'onHeightChange', 'useCacheForDOMMeasurements', 'inputRef']);
+        _autosizeWidth = _props.autosizeWidth,
+        _minWidth = _props.minWidth,
+        _maxWidth = _props.maxWidth,
+        props = objectWithoutProperties(_props, ['minRows', 'maxRows', 'onHeightChange', 'useCacheForDOMMeasurements', 'inputRef', 'autosizeWidth', 'minWidth', 'maxWidth']);
 
 
     props.style = _extends({}, props.style, {
-      height: this.state.height
+      height: this.state.height,
+      width: this.state.width
     });
 
     var maxHeight = Math.max(props.style.maxHeight || Infinity, this.state.maxHeight);

@@ -1,4 +1,5 @@
 import isBrowser from './isBrowser';
+import calculateNodeWidth from './calculateNodeWidth';
 const isIE = isBrowser ? !!document.documentElement.currentStyle : false;
 const hiddenTextarea = isBrowser && document.createElement('textarea');
 
@@ -44,6 +45,10 @@ export default function calculateNodeHeight(
   useCache = false,
   minRows = null,
   maxRows = null,
+  autosizeWidth = false,
+  minWidth = '0',
+  maxWidth = '1920px',
+  autosizeWidthPrecision = 8,
 ) {
   if (hiddenTextarea.parentNode === null) {
     document.body.appendChild(hiddenTextarea);
@@ -58,6 +63,19 @@ export default function calculateNodeHeight(
   }
 
   const { paddingSize, borderSize, boxSizing, sizingStyle } = nodeStyling;
+
+  let width;
+  if (autosizeWidth) {
+    width = calculateNodeWidth(
+      uiTextNode,
+      sizingStyle,
+      hiddenTextarea,
+      HIDDEN_TEXTAREA_STYLE,
+      minWidth,
+      maxWidth,
+      autosizeWidthPrecision,
+    );
+  }
 
   // Need to have the overflow attribute to hide the scrollbar otherwise
   // text-lines will not calculated properly as the shadow will technically be
@@ -108,6 +126,18 @@ export default function calculateNodeHeight(
   }
 
   const rowCount = Math.floor(height / singleRowHeight);
+
+  if (autosizeWidth) {
+    return {
+      height,
+      minHeight,
+      maxHeight,
+      rowCount,
+      width,
+      minWidth,
+      maxWidth,
+    };
+  }
 
   return { height, minHeight, maxHeight, rowCount };
 }

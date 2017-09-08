@@ -150,6 +150,23 @@ class Demo extends React.Component {
             onHeightChange={(height, instance) => console.log(height, instance.rowCount)}
             />
         </div>
+        <div>
+          <h2>Autosize textarea width.</h2>
+          <pre>
+{`
+  <TextareaAutosize
+    autosizeWidth
+    maxWidth="512px"
+    minWidth="64px"
+    />
+`}
+          </pre>
+          <TextareaAutosize
+            autosizeWidth
+            maxWidth="512px"
+            minWidth="64px"
+            />
+        </div>
       </div>
     );
   }

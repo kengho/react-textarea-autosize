@@ -10,10 +10,10 @@ import uid from './uid';
 
 const noop = () => {};
 
-const [onNextFrame, clearNextFrameAction] = isBrowser &&
-  window.requestAnimationFrame
-  ? [window.requestAnimationFrame, window.cancelAnimationFrame]
-  : [setTimeout, clearTimeout];
+const [onNextFrame, clearNextFrameAction] =
+  isBrowser && window.requestAnimationFrame
+    ? [window.requestAnimationFrame, window.cancelAnimationFrame]
+    : [setTimeout, clearTimeout];
 
 export default class TextareaAutosize extends React.Component {
   static propTypes = {
@@ -53,12 +53,16 @@ export default class TextareaAutosize extends React.Component {
       onHeightChange: _onHeightChange,
       useCacheForDOMMeasurements: _useCacheForDOMMeasurements,
       inputRef: _inputRef,
+      autosizeWidth: _autosizeWidth,
+      minWidth: _minWidth,
+      maxWidth: _maxWidth,
       ...props
     } = this.props;
 
     props.style = {
       ...props.style,
       height: this.state.height,
+      width: this.state.width,
     };
 
     let maxHeight = Math.max(
@@ -142,6 +146,10 @@ export default class TextareaAutosize extends React.Component {
       this.props.useCacheForDOMMeasurements,
       this.props.minRows,
       this.props.maxRows,
+      this.props.autosizeWidth,
+      this.props.minWidth,
+      this.props.maxWidth,
+      this.props.autosizeWidthPrecision,
     );
 
     if (nodeHeight === null) {
@@ -149,16 +157,29 @@ export default class TextareaAutosize extends React.Component {
       return;
     }
 
-    const { height, minHeight, maxHeight, rowCount } = nodeHeight;
-
+    const {
+      height,
+      minHeight,
+      maxHeight,
+      rowCount,
+      width,
+      minWidth,
+      maxWidth,
+    } = nodeHeight;
     this.rowCount = rowCount;
 
     if (
       this.state.height !== height ||
       this.state.minHeight !== minHeight ||
-      this.state.maxHeight !== maxHeight
+      this.state.maxHeight !== maxHeight ||
+      this.state.width !== width ||
+      this.state.minWidth !== minWidth ||
+      this.state.maxWidth !== maxWidth
     ) {
-      this.setState({ height, minHeight, maxHeight }, callback);
+      this.setState(
+        { height, minHeight, maxHeight, width, minWidth, maxWidth },
+        callback,
+      );
       return;
     }
 
